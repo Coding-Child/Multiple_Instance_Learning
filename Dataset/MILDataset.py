@@ -157,7 +157,7 @@ def extract_patches(json_path, img_path, num_samples):
             start_x = x
             start_y = y
 
-            patch = img.crop((start_y, start_x, start_y + width, start_x + height))
+            patch = img.crop((start_y, start_x, start_y + height, start_x + width))
 
             patches_list.append(patch)
             pseudo_labels.append(pseudo_label)
