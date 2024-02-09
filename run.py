@@ -6,7 +6,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameters for the model.')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')
     parser.add_argument('--loss_weight', type=float, default=0.7, help='Loss weight based on instance loss ratio.')
-    parser.add_argument('--model_type', type=str, default='ResNet', help='Using Model Type.')
     parser.add_argument('--scheduler', type=str, default='StepLR', help='Using Scheduler Type.')
     parser.add_argument('--gamma', type=float, default=0.1, help='Gamma for StepLR.')
     parser.add_argument('--warmup_steps', type=float, default=4000, help='Noam Warmup Steps.')

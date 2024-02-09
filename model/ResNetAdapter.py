@@ -55,6 +55,8 @@ class ResNet50(nn.Module):
         """
         super(ResNet50, self).__init__()
 
+        self.d_model = d_model
+
         self.trunk = resnet50(pretrained, progress, key, **kwargs)
         self.pool = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)),
                                   nn.Flatten(),
@@ -69,13 +71,26 @@ class ResNet50(nn.Module):
         b, n, c, h, w = x.size()
         x = x.view(-1, c, h, w)
 
-        feautures = self.trunk(x)
-        feautures = self.pool(feautures)
-        out = self.classfier(feautures)
+        mean_values = x.view(b * n, -1).mean(dim=1)
+        zero_mask = mean_values == 0
 
-        feautures = feautures.view(b, n, -1)
+        if zero_mask.any():
+            x = x[~zero_mask]
 
-        return feautures, out
+            non_zero_features = self.trunk(x)
+            non_zero_features = self.pool(non_zero_features)
+            out = self.classfier(non_zero_features)
+
+            features = torch.zeros(b * n, self.d_model, device=x.device)
+            features[~zero_mask] = non_zero_features
+        else:
+            features = self.trunk(x)
+            features = self.pool(features)
+            out = self.classfier(features)
+
+        features = features.view(b, n, -1)
+
+        return features, out
 
 
 if __name__ == '__main__':

@@ -5,7 +5,6 @@ import torch.optim as opt
 
 from torchvision import transforms as T
 
-from model.ViTMIL import ViTMIL
 from model.ResNetMIL import ResNetMIL
 from Dataset.MILDataset import PathologyDataset, collate_fn, data_split
 from trainer.ModelTrainer import train, seed_everything
@@ -20,7 +19,6 @@ def main(args):
     seed_everything(42)
 
     lr = args.lr
-    model_type = args.model_type
     d_model = args.d_model
     num_heads = args.num_heads
     num_layers = args.num_layers
@@ -36,10 +34,7 @@ def main(args):
     gamma = args.gamma
     warmup = args.warmup_steps
     
-    if model_type == 'ViT':
-        model = ViTMIL(num_heads=num_heads, num_layers=num_layers, dropout=dropout)
-    else:
-        model = ResNetMIL(d_model=d_model, num_heads=num_heads, num_layers=num_layers, dropout=dropout)
+    model = ResNetMIL(d_model=d_model, num_heads=num_heads, num_layers=num_layers, dropout=dropout)
 
     transform= T.Compose([T.ToTensor()
                           ])
