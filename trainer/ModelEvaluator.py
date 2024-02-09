@@ -58,11 +58,11 @@ def test_model(model, data_loader, criterion_1, criterion_2):
         best_path = os.path.join('model_check_point', best_model)
 
         # Load the best model weights
-        model.module.load_state_dict(torch.load(best_path))
+        model.load_state_dict(torch.load(best_path))
         best_loss_1, best_loss_2, best_auroc, best_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2)
 
         # Load the best model weights
-        model.module.load_state_dict(torch.load(final_path))
+        model.load_state_dict(torch.load(final_path))
         final_loss_1, final_loss_2, final_auroc, final_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2)
 
         # Print the evaluation metrics

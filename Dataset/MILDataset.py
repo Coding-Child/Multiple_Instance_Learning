@@ -26,7 +26,7 @@ def collate_fn(batch):
     padded_images = [pad_image_to_max_patches(image, max_patches) for image in images]
 
     images_tensor = torch.stack(padded_images)
-    pseudo_labels_tensor = torch.stack(pseudo_labels)
+    pseudo_labels_tensor = torch.cat(pseudo_labels, dim=0)
     labels_tensor = torch.tensor(labels)
 
     return images_tensor, labels_tensor, pseudo_labels_tensor

@@ -50,7 +50,7 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
 
             optimizer.zero_grad()
             loss.backward()
-            clip_grad_norm_(model.module.parameters(), 5)
+            clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             if scheduler is not None:
@@ -74,9 +74,9 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
             else:
                 max_f1_score = val_f1_score
 
-            torch.save(model.module.state_dict(), 'model_check_point/best_model.pth')
+            torch.save(model.state_dict(), 'model_check_point/best_model.pth')
             print('Best Model Saved!! AUROC: {:.4f} | F1 Score: {:.4f}'.format(max_auroc, max_f1_score))
 
-    torch.save(model.module.state_dict(), 'model_check_point/final_model.pth')
+    torch.save(model.state_dict(), 'model_check_point/final_model.pth')
 
     return train_instance_loss_arr, train_bag_loss_arr

@@ -1,5 +1,7 @@
 import argparse
 from run_utils.runfile import main
+import warnings
+warnings.filterwarnings("ignore", message=".*The PyTorch API of nested tensors is in prototype stage.*")
 
 
 if __name__ == '__main__':

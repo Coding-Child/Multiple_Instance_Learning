@@ -3,14 +3,13 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 
-from model.Transformer import TransformerEncoder
 from model.ResNetAdapter import ResNet50
 
 
-def create_padding_mask(features, threshold=1e-4):
-    norms = features.norm(p=2, dim=2)
+def create_padding_mask(features: torch.Tensor) -> torch.Tensor:
+    means = features.mean(dim=2)
 
-    mask = norms < threshold
+    mask = means == 0
 
     return mask
 
