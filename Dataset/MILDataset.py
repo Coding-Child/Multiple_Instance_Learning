@@ -27,7 +27,7 @@ def collate_fn(batch):
 
     images_tensor = torch.stack(padded_images)
     pseudo_labels_tensor = torch.cat(pseudo_labels, dim=0)
-    labels_tensor = torch.tensor(labels)
+    labels_tensor = torch.tensor(labels, dtype=torch.float32)
 
     return images_tensor, labels_tensor, pseudo_labels_tensor
 
@@ -168,16 +168,21 @@ def extract_patches(json_path, img_path, num_samples):
         return patches_list, pseudo_labels
 
 
-def data_split(csv_file):
+def data_split(csv_file, val: bool = False):
     """
     params:
         csv_file: str (path of csv file)
     """
     data_info = pd.read_csv(csv_file)
-    train_df, val_test_df = train_test_split(data_info, test_size=0.2, random_state=42)
-    val_df, test_df = train_test_split(val_test_df, test_size=0.5, random_state=42)
+    if val == False:
+        train_df, test_df = train_test_split(data_info, test_size=0.2, random_state=42)
+        
+        return train_df, test_df
+    else:
+        train_df, val_test_df = train_test_split(data_info, test_size=0.2, random_state=42)
+        val_df, test_df = train_test_split(val_test_df, test_size=0.5, random_state=42)
 
-    return train_df, val_df, test_df
+        return train_df, val_df, test_df
 
 
 class PathologyDataset(Dataset):
