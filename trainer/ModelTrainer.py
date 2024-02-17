@@ -71,7 +71,7 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
                 del data, target, pseudo_target, loss1, loss2, loss
 
         os.makedirs('model_check_point', exist_ok=True)
-        _, _, val_auroc, val_f1_score = evaluate_model(model, val_loader, criterion1, criterion2)
+        _, _, val_auroc, val_f1_score = evaluate_model(model, val_loader, criterion1, criterion2, fold, phase='Validation')
 
         if val_auroc >= 0.99:
             # AUROC가 99% 이상인 경우의 특별 처리

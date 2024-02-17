@@ -3,11 +3,12 @@ from util.metric import calculate_metrics
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import pandas as pd
 
 from util.remove_file import clear_directory
 
 
-def evaluate_model(model, data_loader, criterion_1, criterion_2):
+def evaluate_model(model, data_loader, criterion_1, criterion_2, fold, phase='Validation'):
     """
     params:
         model: nn.Module (model)
@@ -22,7 +23,7 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2):
     y_pred = []
 
     model.eval()
-    with tqdm(data_loader, desc=f'Validation', unit='batch') as pbar:
+    with tqdm(data_loader, desc=f'{phase}', unit='batch') as pbar:
         with torch.no_grad():
             for inputs, targets, pseudo_targets in data_loader:
                 inputs = inputs.cuda()
@@ -46,6 +47,28 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2):
                 torch.cuda.empty_cache()
                 del inputs, targets, pseudo_targets
 
+    if phase == 'Final Test':
+        os.makedirs(f'test_result/fold_{fold + 1}', exist_ok=True)
+
+        result_dict = {'target': y_true, 'pred': y_pred}
+
+        df = pd.DataFrame(result_dict)
+        df.to_csv(f'test_result/fold_{fold + 1}/final_test_fold_{fold + 1}.csv', index=False)
+    elif phase == 'Best Test':
+        os.makedirs(f'test_result/fold_{fold + 1}', exist_ok=True)
+
+        result_dict = {'target': y_true, 'pred': y_pred}
+
+        df = pd.DataFrame(result_dict)
+        df.to_csv(f'test_result/fold_{fold + 1}/best_test_fold_{fold + 1}.csv', index=False)
+    elif phase == 'Suspicious Test':
+        os.makedirs(f'test_result/fold_{fold + 1}', exist_ok=True)
+
+        result_dict = {'target': y_true, 'pred': y_pred}
+
+        df = pd.DataFrame(result_dict)
+        df.to_csv(f'test_result/fold_{fold + 1}/suspicious_test_fold_{fold + 1}.csv', index=False)
+
     avg_loss_1 = total_loss_1 / total_samples
     avg_loss_2 = total_loss_2 / total_samples
 
@@ -59,7 +82,7 @@ def test_model(model, data_loader, criterion_1, criterion_2, fold):
 
         # Load the best model weights
         model.load_state_dict(torch.load(final_path))
-        final_loss_1, final_loss_2, final_auroc, final_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2)
+        final_loss_1, final_loss_2, final_auroc, final_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2, fold=fold, phase='Final Test')
 
         # Print the evaluation metrics
         print("Final Instance Loss:", final_loss_1)
@@ -71,7 +94,7 @@ def test_model(model, data_loader, criterion_1, criterion_2, fold):
             best_path = f'model_check_point/best_model_fold_{fold + 1}.pth'
             # Load the best model weights
             model.load_state_dict(torch.load(best_path))
-            best_loss_1, best_loss_2, best_auroc, best_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2)
+            best_loss_1, best_loss_2, best_auroc, best_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2, fold=fold, phase='Best Test')
 
             print("Best Instance Loss:", best_loss_1)
             print("Best Bag Loss:", best_loss_2)
@@ -82,7 +105,7 @@ def test_model(model, data_loader, criterion_1, criterion_2, fold):
             sus_path = f'model_check_point/suspicious_best_model_fold_{fold + 1}.pth'
             model.load_state_dict(torch.load(sus_path))
 
-            sus_loss_1, sus_loss_2, sus_auroc, sus_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2)
+            sus_loss_1, sus_loss_2, sus_auroc, sus_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2, fold=fold, phase='Suspicious Test')
 
             print("Suspicious Instance Loss:", sus_loss_1)
             print("Suspicious Bag Loss:", sus_loss_2)
