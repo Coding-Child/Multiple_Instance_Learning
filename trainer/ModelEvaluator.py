@@ -8,7 +8,7 @@ import pandas as pd
 from util.remove_file import clear_directory
 
 
-def evaluate_model(model, data_loader, criterion_1, criterion_2, fold, phase='Validation'):
+def evaluate_model(model, data_loader, criterion_1, criterion_2, fold=None, epoch=None, phase='Validation'):
     """
     params:
         model: nn.Module (model)
@@ -68,6 +68,13 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2, fold, phase='Va
 
         df = pd.DataFrame(result_dict)
         df.to_csv(f'test_result/fold_{fold + 1}/suspicious_test_fold_{fold + 1}.csv', index=False)
+    else:
+        os.makedirs(f'validation_result/fold_{fold + 1}', exist_ok=True)
+
+        result_dict = {'target': y_true, 'pred': y_pred}
+
+        df = pd.DataFrame(result_dict)
+        df.to_csv(f'validation_result/fold_{fold + 1}/validation_epoch_{epoch + 1}.csv', index=False)
 
     avg_loss_1 = total_loss_1 / total_samples
     avg_loss_2 = total_loss_2 / total_samples
@@ -78,7 +85,7 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2, fold, phase='Va
 
 
 def test_model(model, data_loader, criterion_1, criterion_2, fold):
-        final_path = f'model_check_point/final_model_fold_{fold + 1}.pth'
+        final_path = f'model_check_point/fold_{fold + 1}/final_model_fold_{fold + 1}.pth'
 
         # Load the best model weights
         model.load_state_dict(torch.load(final_path))
@@ -90,8 +97,8 @@ def test_model(model, data_loader, criterion_1, criterion_2, fold):
         print("Final AUROC:", final_auroc)
         print("Final F1 Score:", final_f1_score)
 
-        if os.path.isfile(f'model_check_point/best_model_fold_{fold + 1}.pth'):
-            best_path = f'model_check_point/best_model_fold_{fold + 1}.pth'
+        if os.path.isfile(f'model_check_point/fold_{fold + 1}/best_model_fold_{fold + 1}.pth'):
+            best_path = f'model_check_point/fold_{fold + 1}/best_model_fold_{fold + 1}.pth'
             # Load the best model weights
             model.load_state_dict(torch.load(best_path))
             best_loss_1, best_loss_2, best_auroc, best_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2, fold=fold, phase='Best Test')
@@ -101,8 +108,8 @@ def test_model(model, data_loader, criterion_1, criterion_2, fold):
             print("Best AUROC:", best_auroc)
             print("Best F1 Score:", best_f1_score)
 
-        if os.path.isfile(f'model_check_point/suspicious_best_model_fold_{fold + 1}.pth'):
-            sus_path = f'model_check_point/suspicious_best_model_fold_{fold + 1}.pth'
+        if os.path.isfile(f'model_check_point/fold_{fold + 1}/suspicious_best_model_fold_{fold + 1}.pth'):
+            sus_path = f'model_check_point/fold_{fold + 1}/suspicious_best_model_fold_{fold + 1}.pth'
             model.load_state_dict(torch.load(sus_path))
 
             sus_loss_1, sus_loss_2, sus_auroc, sus_f1_score = evaluate_model(model, data_loader, criterion_1, criterion_2, fold=fold, phase='Suspicious Test')

@@ -14,6 +14,8 @@ from util.scheduler import NoamLR
 
 import matplotlib.pyplot as plt
 import os
+import matplotlib
+matplotlib.use('Agg')
 
 
 def main(args):

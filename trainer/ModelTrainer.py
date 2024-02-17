@@ -5,6 +5,8 @@ import torch.backends.cudnn as cudnn
 from torch.nn.utils.clip_grad import clip_grad_norm_
 import numpy as np
 import random
+import pandas as pd
+from sklearn.metrics import confusion_matrix
 from trainer.ModelEvaluator import evaluate_model
 
 
@@ -33,16 +35,19 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
     patience = 0
     max_auroc = 0
     max_f1_score = 0
-    train_instance_loss_arr = []
-    train_bag_loss_arr = []
+    train_instance_loss_arr = list()
+    train_bag_loss_arr = list()
 
-    suspicious_save_path = f'model_check_point/suspicious_best_model_fold_{fold + 1}.pth'
-    best_save_path = f'model_check_point/best_model_fold_{fold + 1}.pth'
-    final_save_path = f'model_check_point/final_model_fold_{fold + 1}.pth'
+    suspicious_save_path = f'model_check_point/fold_{fold + 1}/suspicious_best_model_fold_{fold + 1}.pth'
+    best_save_path = f'model_check_point/fold_{fold + 1}/best_model_fold_{fold + 1}.pth'
+    final_save_path = f'model_check_point/fold_{fold + 1}/final_model_fold_{fold + 1}.pth'
 
     for epoch in range(num_epochs):
         model.train()
-        train_loss = 0
+
+        y_true = list()
+        y_pred = list()
+
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='batch') as pbar:
             for batch_idx, (data, target, pseudo_target) in enumerate(pbar):
                 data, target, pseudo_target = data.cuda(), target.cuda(), pseudo_target.cuda()
@@ -60,18 +65,26 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
                 if scheduler is not None:
                     scheduler.step()
 
-                train_loss += loss.item()
                 train_instance_loss_arr.append(loss1.detach().cpu().numpy())
                 train_bag_loss_arr.append(loss2.detach().cpu().numpy())
+
+                y_true.extend(target.detach().cpu().numpy())
+                y_pred.extend(bag_pred.detach().cpu().numpy())
 
                 pbar.update(1)
                 pbar.set_postfix_str(f"Instance Loss: {loss1:.4f}, Bag Loss: {loss2:.4f}, Learning Rate: {optimizer.param_groups[0]['lr']:.2e}")
 
                 torch.cuda.empty_cache()
                 del data, target, pseudo_target, loss1, loss2, loss
+            
+        y_pred = [1 if i > 0.5 else 0 for i in y_pred]
+        os.makedirs(f'confusion_matrix/fold_{fold + 1}', exist_ok=True)
+        cm = confusion_matrix(y_true, y_pred)
+        cm_df = pd.DataFrame(cm, index=['True Negative', 'True Positive'], columns=['Predicted Negative', 'Predicted Positive'])
+        cm_df.to_csv(f'confusion_matrix/fold_{fold + 1}/confusion_matrix_epoch_{epoch + 1}.csv', index=True)
 
-        os.makedirs('model_check_point', exist_ok=True)
-        _, _, val_auroc, val_f1_score = evaluate_model(model, val_loader, criterion1, criterion2, fold, phase='Validation')
+        os.makedirs(f'model_check_point/fold_{fold + 1}', exist_ok=True)
+        _, _, val_auroc, val_f1_score = evaluate_model(model, val_loader, criterion1, criterion2, fold=fold, epoch=epoch, phase='Validation')
 
         if val_auroc >= 0.99:
             # AUROC가 99% 이상인 경우의 특별 처리
