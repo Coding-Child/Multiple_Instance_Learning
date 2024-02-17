@@ -51,7 +51,8 @@ class ResNetMIL(nn.Module):
         super(ResNetMIL, self).__init__()
 
         self.resnet = ResNet50(pretrained=pretrained, progress=progress, key=key, d_model=d_model)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_model*4, dropout=dropout, batch_first=True)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_model*4, 
+                                                   dropout=dropout, batch_first=True, norm_first=True)
         self.attn = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.classifier = ClassificationHead(d_model, num_fc)
 
