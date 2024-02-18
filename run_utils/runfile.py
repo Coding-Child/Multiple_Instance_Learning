@@ -28,15 +28,15 @@ def main(args):
     num_fc = args.num_fc
     dropout = args.dropout
     num_epochs = args.num_epochs
+    num_patience = args.num_patience
     train_batch_size = args.train_batch_size
     test_batch_size = args.test_batch_size
     train_num_sample = args.num_train_instance
     test_num_sample = args.num_test_instance
     csv_root = args.csv_root_dir
     loss_weight = args.loss_weight
-    scheduler_type = args.scheduler
+    scheduler = args.scheduler
     gamma = args.gamma
-    warmup = args.warmup_steps
     
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
@@ -63,7 +63,7 @@ def main(args):
         print(f'Fold {i + 1} Start')
         print('-' * 35)
 
-        model = ResNetMIL(d_model=d_model, num_heads=num_heads, num_layers=num_layers, dropout=dropout)
+        model = ResNetMIL(d_model=d_model, num_heads=num_heads, num_layers=num_layers, dropout=dropout, num_fc=num_fc)
         if torch.cuda.device_count() > 1:
             model = nn.DataParallel(model, device_ids=[0, 1])
         model.cuda()
@@ -88,10 +88,8 @@ def main(args):
                                 drop_last=True, 
                                 collate_fn=collate_fn)
         
-        if scheduler_type == 'StepLR':
+        if scheduler:
             scheduler = opt.lr_scheduler.StepLR(optimizer, step_size=len(train_loader), gamma=gamma)
-        elif scheduler_type == 'Noam':
-            scheduler = NoamLR(optimizer=optimizer, model_size=d_model, warmup_steps=warmup)
         else:
             scheduler = None
 
@@ -103,7 +101,7 @@ def main(args):
                                                   optimizer=optimizer,
                                                   scheduler=scheduler,
                                                   num_epochs=num_epochs,
-                                                  num_patience=10,
+                                                  num_patience=num_patience,
                                                   loss_weight=loss_weight,
                                                   fold=i
                                                   )
