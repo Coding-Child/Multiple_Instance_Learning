@@ -1,51 +1,67 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
+from typing import Optional
 
 from model.ResNetAdapter import ResNet50
 
 
-def create_padding_mask(features: torch.Tensor) -> torch.Tensor:
+def create_padding_mask(features: torch.Tensor):
     means = features.mean(dim=2)
 
     mask = means == 0
 
-    return mask
+    return mask.to(torch.bool)
 
 class TransformerEncoderLayer(nn.TransformerEncoderLayer):
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu", batch_first=False, norm_first=False):
         super().__init__(d_model, nhead, dim_feedforward, dropout, activation, batch_first=batch_first, norm_first=norm_first)
     
-    def forward(self, src, src_mask=None, src_key_padding_mask=None):
-        src2, attn_weights = self.self_attn(src, src, src, attn_mask=src_mask,
-                                            key_padding_mask=src_key_padding_mask)
+    def forward(self, src, src_mask=None, src_key_padding_mask=None, is_causal=False):        
+        x = src
+        if self.norm_first:
+            temp, attn_weights = self._sa_block(self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal)
+            x = x + temp
+            x = x + self._ff_block(self.norm2(x))
+        else:
+            temp, attn_weights = self._sa_block(x, src_mask, src_key_padding_mask, is_causal=is_causal)
+            x = self.norm1(x + temp)
+            x = self.norm2(x + self._ff_block(x))
+
+        return x, attn_weights
         
-        # 원래 TransformerEncoderLayer의 forward 메소드 내용을 호출
-        src = super().forward(src, src_mask, src_key_padding_mask)
+    
+    def _sa_block(self, x: Tensor,
+                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
+        x, attn_weights = self.self_attn(x, x, x,
+                                         attn_mask=attn_mask,
+                                         key_padding_mask=key_padding_mask,
+                                         need_weights=True, average_attn_weights=True, is_causal=is_causal)
         
-        # attn_weights 반환
-        return src, attn_weights
+        return self.dropout1(x), attn_weights
+
+    # feed forward block
+    def _ff_block(self, x: Tensor) -> Tensor:
+        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        return self.dropout2(x)
     
 class TransformerEncoder(nn.TransformerEncoder):
-    def __init__(self, encoder_layer, num_layers, norm=None):
-        super().__init__(encoder_layer, num_layers, norm)
+    def __init__(self, encoder_layer, num_layers, norm=None, enable_nested_tensor=True):
+        super().__init__(encoder_layer, num_layers, norm, enable_nested_tensor=enable_nested_tensor)
 
     def forward(self, src, mask=None, src_key_padding_mask=None):
         output = src
-        attn_weights = list()
+        attn_weights_list = list()
 
         for mod in self.layers:
-            output, attn_scores = mod(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
-
-            attn_weights_avg = attn_scores.mean(dim=1)
-            attn_scores_per_position = attn_weights_avg.mean(dim=-1)
-
-            attn_weights.append(attn_scores_per_position)
+            output, attn_weights = mod(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
+            attn_weights_list.append(attn_weights)
 
         if self.norm:
             output = self.norm(output)
 
-        return output, attn_weights
+        return output, attn_weights_list
 
 class ClassificationHead(nn.Module):
     def __init__(self, d_model, num_fc):
@@ -88,7 +104,7 @@ class ResNetMIL(nn.Module):
         self.resnet = ResNet50(pretrained=pretrained, progress=progress, key=key, d_model=d_model)
         encoder_layer = TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dim_feedforward=d_model*4, 
                                                 dropout=dropout, batch_first=True, norm_first=True)
-        self.attn = TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.attn = TransformerEncoder(encoder_layer, num_layers=num_layers, enable_nested_tensor=False)
         self.classifier = ClassificationHead(d_model, num_fc)
 
         self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
@@ -102,7 +118,7 @@ class ResNetMIL(nn.Module):
 
         attn_mask = create_padding_mask(src)
         src, attn_scores = self.attn(src, src_key_padding_mask=attn_mask)
-        attn_scores = torch.stack(attn_scores, dim=0).mean(dim=0)
+        attn_scores = torch.stack(attn_scores, dim=0).mean(dim=2).mean(dim=0)
 
         cls_token_output = src[:, 0]
         out = self.classifier(cls_token_output)
@@ -113,4 +129,4 @@ class ResNetMIL(nn.Module):
 if __name__ == '__main__':
     model = ResNetMIL(pretrained=True, progress=False, key="MoCoV2").cuda()
     data = torch.rand((8, 32, 3, 224, 224)).cuda()
-    out_1, out_2, attn_scores = model(data)
+    out_1, out_2 = model(data)
