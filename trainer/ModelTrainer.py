@@ -52,7 +52,7 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
             for batch_idx, (data, target, pseudo_target) in enumerate(pbar):
                 data, target, pseudo_target = data.cuda(), target.cuda(), pseudo_target.cuda()
 
-                instance_pred, bag_pred = model(data)
+                instance_pred, bag_pred, _ = model(data)
                 loss1 = criterion1(instance_pred, pseudo_target.view(-1))
                 loss2 = criterion2(bag_pred, target)
                 loss = (loss1 * loss_weight) + (loss2 * (1 - loss_weight))

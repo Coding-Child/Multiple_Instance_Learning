@@ -30,7 +30,7 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2, fold=None, epoc
                 targets = targets.cuda()
                 pseudo_targets = pseudo_targets.cuda()
 
-                instance_pred, bag_pred = model(inputs)
+                instance_pred, bag_pred, _ = model(inputs)
                 loss_1 = criterion_1(instance_pred, pseudo_targets.view(-1))
                 loss_2 = criterion_2(bag_pred, targets)
 
