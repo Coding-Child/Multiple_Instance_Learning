@@ -49,7 +49,7 @@ def train(model, train_loader, val_loader, criterion1, criterion2, optimizer, sc
         y_pred = list()
 
         with tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', unit='batch') as pbar:
-            for batch_idx, (data, target, pseudo_target) in enumerate(pbar):
+            for _, data, target, pseudo_target in train_loader:
                 data, target, pseudo_target = data.cuda(), target.cuda(), pseudo_target.cuda()
 
                 instance_pred, bag_pred, _ = model(data)

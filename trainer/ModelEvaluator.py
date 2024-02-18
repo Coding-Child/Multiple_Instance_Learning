@@ -25,7 +25,7 @@ def evaluate_model(model, data_loader, criterion_1, criterion_2, fold=None, epoc
     model.eval()
     with tqdm(data_loader, desc=f'{phase}', unit='batch') as pbar:
         with torch.no_grad():
-            for inputs, targets, pseudo_targets in data_loader:
+            for _, inputs, targets, pseudo_targets in data_loader:
                 inputs = inputs.cuda()
                 targets = targets.cuda()
                 pseudo_targets = pseudo_targets.cuda()
