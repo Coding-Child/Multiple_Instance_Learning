@@ -20,7 +20,7 @@ def collate_fn(batch):
     params:
         batch: list of tuple (image, label, pseudo_label) (batch data)
     """
-    images, labels, pseudo_labels = zip(*batch)
+    patch_names, images, labels, pseudo_labels = zip(*batch)
 
     max_patches = max([image.shape[0] for image in images])
     padded_images = [pad_image_to_max_patches(image, max_patches) for image in images]
@@ -29,7 +29,7 @@ def collate_fn(batch):
     pseudo_labels_tensor = torch.cat(pseudo_labels, dim=0)
     labels_tensor = torch.tensor(labels, dtype=torch.float32)
 
-    return images_tensor, labels_tensor, pseudo_labels_tensor
+    return patch_names, images_tensor, labels_tensor, pseudo_labels_tensor
 
 
 def pad_image_to_max_patches(image, max_patches):
@@ -130,19 +130,12 @@ def extract_patches(json_path, img_path, num_samples):
     with open(json_path, 'r') as file:
         patches_info = json.load(file)
 
-    patch_names_with_label_1 = [name for name, data in patches_info.items() if data['pseudo_label'] == 1]
-    patch_names_with_label_0 = [name for name, data in patches_info.items() if data['pseudo_label'] == 0]
-    sampled_patch_names = []
+    all_patch_names = list(patches_info.keys())
 
-    if len(patch_names_with_label_1) >= num_samples:
-        sampled_patch_names = random.sample(patch_names_with_label_1, num_samples)
+    if len(all_patch_names) >= num_samples:
+        sampled_patch_names = random.sample(all_patch_names, num_samples)
     else:
-        sampled_patch_names = patch_names_with_label_1
-        num_additional_samples = num_samples - len(patch_names_with_label_1)
-        
-        if num_additional_samples > 0:
-            num_additional_samples = min(num_additional_samples, len(patch_names_with_label_0))
-            sampled_patch_names += random.sample(patch_names_with_label_0, num_additional_samples)
+        sampled_patch_names = all_patch_names
 
     with Image.open(img_path) as img:
         patches_list = []
@@ -165,7 +158,7 @@ def extract_patches(json_path, img_path, num_samples):
         if not patches_list:
             raise ValueError(f"No patches found path {img_path}")
 
-        return patches_list, pseudo_labels
+        return sampled_patch_names, patches_list, pseudo_labels
 
 
 def data_split(csv_file, val: bool = False):
@@ -205,7 +198,7 @@ class PathologyDataset(Dataset):
         json_path = self.data_info.iloc[idx]['json_path']
         label = self.data_info.iloc[idx]['label']
 
-        patches, pseudo_labels = extract_patches(json_path, img_path, self.num_samples)
+        patch_name, patches, pseudo_labels = extract_patches(json_path, img_path, self.num_samples)
 
         if self.transform:
             patches_tensor = torch.stack([self.transform(patch) for patch in patches])
@@ -215,7 +208,7 @@ class PathologyDataset(Dataset):
         label = torch.tensor(label, dtype=torch.long)
         pseudo_labels = torch.tensor(pseudo_labels, dtype=torch.long)
 
-        return patches_tensor, label, pseudo_labels
+        return patch_name, patches_tensor, label, pseudo_labels
     
     def get_image_path(self, idx):
         return self.data_info.iloc[idx]['img_path']
